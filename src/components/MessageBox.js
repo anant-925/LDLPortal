@@ -3,19 +3,19 @@ import React from 'react';
 
 const MessageBox = ({ message, type, onClose }) => {
     if (!message) return null;
-    const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+    const bgColor = type === 'error' ? 'bg-red-600' : 'bg-green-600';
     const textColor = 'text-white';
-    const borderColor = type === 'error' ? 'border-red-600' : 'border-green-600';
+    const borderColor = type === 'error' ? 'border-red-700' : 'border-green-700';
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className={`relative ${bgColor} ${textColor} p-6 rounded-lg shadow-xl border-2 ${borderColor} max-w-sm w-full mx-auto animate-fade-in-down`}>
-                <p className="text-lg font-semibold text-center mb-4">{message}</p>
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-6">
+            <div className={`relative ${bgColor} ${textColor} p-8 rounded-xl shadow-2xl border-4 ${borderColor} max-w-md w-full mx-auto transform transition-all duration-300 scale-100 animate-fade-in-down`}>
+                <p className="text-xl font-bold text-center mb-6 leading-tight">{message}</p>
                 <button
                     onClick={onClose}
-                    className="mt-4 w-full bg-white text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-200 transition-colors duration-200 shadow-md transform hover:scale-105"
+                    className="w-full bg-white text-gray-800 font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-200 transition-colors duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-70"
                 >
-                    OK
+                    Dismiss
                 </button>
             </div>
         </div>
@@ -23,4 +23,3 @@ const MessageBox = ({ message, type, onClose }) => {
 };
 
 export default MessageBox;
-

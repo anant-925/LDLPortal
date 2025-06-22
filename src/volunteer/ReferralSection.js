@@ -23,31 +23,31 @@ const ReferralSection = ({ userProfile }) => {
     };
 
     return (
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-lg mx-auto text-center">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-center"><Share2 className="mr-3 text-blue-600" /> Referral Program</h3>
-            <p className="text-gray-600 mb-4">
-                Share your unique referral code with friends! You'll receive a reward once they accumulate 30 days of attendance.
+        <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-lg mx-auto text-center border-l-4 border-purple-500">
+            <h3 className="text-3xl font-bold text-gray-900 mb-8 flex items-center justify-center"><Share2 className="mr-3 text-purple-600" size={28} /> Referral Program</h3>
+            <p className="text-gray-700 text-lg mb-6 leading-relaxed">
+                Empower our mission by referring new volunteers! Earn exciting rewards once your referred friends complete 30 days of active attendance.
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6 shadow-inner">
-                <p className="text-lg font-medium text-gray-700 mb-2">Your Referral Code:</p>
-                <div className="flex items-center justify-center bg-white border border-gray-300 rounded-md p-3">
-                    <span className="font-mono text-xl text-blue-800 mr-3 break-all">{userProfile?.uid}</span>
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-8 shadow-inner">
+                <p className="text-xl font-semibold text-gray-800 mb-3">Your Unique Referral Code:</p>
+                <div className="flex items-center justify-center bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
+                    <span className="font-mono text-2xl text-purple-800 mr-4 break-all select-all">{userProfile?.uid}</span>
                     <button
                         onClick={handleCopyClick}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md transform hover:scale-105"
+                        className="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition-colors duration-300 shadow-md transform hover:scale-105 font-semibold text-lg"
                     >
-                        Copy
+                        Copy Code
                     </button>
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <div className="bg-green-50 p-4 rounded-lg shadow-inner">
-                    <p className="text-lg font-bold text-green-600">{userProfile?.referralCount || 0}</p>
-                    <p className="text-gray-600 mt-1">Successful Referrals</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
+                <div className="bg-green-50 p-6 rounded-xl shadow-md border border-green-200">
+                    <p className="text-4xl font-extrabold text-green-700">{userProfile?.referralCount || 0}</p>
+                    <p className="text-lg text-gray-700 mt-2">Successful Referrals</p>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg shadow-inner">
-                    <p className="text-lg font-bold text-purple-600">{userProfile?.rewards?.length || 0}</p>
-                    <p className="text-gray-600 mt-1">Earned Rewards</p>
+                <div className="bg-amber-50 p-6 rounded-xl shadow-md border border-amber-200">
+                    <p className="text-4xl font-extrabold text-amber-700">{userProfile?.rewards?.length || 0}</p>
+                    <p className="text-lg text-gray-700 mt-2">Earned Rewards</p>
                 </div>
             </div>
         </div>

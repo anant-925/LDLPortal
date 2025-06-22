@@ -90,18 +90,18 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
     };
 
     return (
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-lg mx-auto">
+        <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-lg mx-auto border-r-4 border-purple-500">
             {loading && <LoadingSpinner />}
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Mark Volunteer Attendance</h3>
-            <form onSubmit={handleMarkAttendance} className="space-y-5">
+            <h3 className="text-3xl font-bold text-gray-900 mb-8 text-center">Mark Volunteer Attendance</h3>
+            <form onSubmit={handleMarkAttendance} className="space-y-6">
                 <div>
-                    <label htmlFor="volunteerSelect" className="block text-gray-700 text-sm font-medium mb-2">Select Volunteer</label>
+                    <label htmlFor="volunteerSelect" className="block text-gray-700 text-lg font-medium mb-2">Select Volunteer</label>
                     <select
                         id="volunteerSelect"
                         value={selectedVolunteerId}
                         onChange={(e) => setSelectedVolunteerId(e.target.value)}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm bg-white"
                     >
                         <option value="">-- Select a Volunteer --</option>
                         {volunteers.map(volunteer => (
@@ -110,23 +110,23 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="attendanceDate" className="block text-gray-700 text-sm font-medium mb-2">Date</label>
+                    <label htmlFor="attendanceDate" className="block text-gray-700 text-lg font-medium mb-2">Date</label>
                     <input
                         type="date"
                         id="attendanceDate"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm"
                     />
                 </div>
                 <div>
-                    <label htmlFor="attendanceCamp" className="block text-gray-700 text-sm font-medium mb-2">Camp</label>
+                    <label htmlFor="attendanceCamp" className="block text-gray-700 text-lg font-medium mb-2">Camp</label>
                     <select
                         id="attendanceCamp"
                         value={selectedCamp}
                         onChange={(e) => setSelectedCamp(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm bg-white"
                     >
                         <option value="Camp 1">Camp 1</option>
                         <option value="Camp 2">Camp 2</option>
@@ -134,7 +134,7 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
                 </div>
                 <button
                     type="submit"
-                    className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 transform hover:scale-105"
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg hover:from-purple-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 text-xl"
                 >
                     Mark Attendance
                 </button>

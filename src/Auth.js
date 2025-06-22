@@ -25,6 +25,7 @@ const Auth = ({ setCurrentPage }) => {
             } else {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
+                // Use process.env.REACT_APP_APP_UNIQUE_ID for appId (e.g., 'ldlportal')
                 const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
                 const userRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
 
@@ -65,75 +66,75 @@ const Auth = ({ setCurrentPage }) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-200 p-6 font-inter">
             {loading && <LoadingSpinner />}
-            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md transform transition-all duration-300 hover:shadow-2xl">
-                <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
-                    {isLogin ? 'Login to LDLPortal' : 'Sign Up for LDLPortal'}
+            <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md transform transition-all duration-500 hover:scale-[1.01] hover:shadow-3xl">
+                <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-10 leading-tight">
+                    {isLogin ? 'Welcome Back!' : 'Join the LDL Family!'}
                 </h2>
-                <form onSubmit={handleAuth} className="space-y-6">
+                <form onSubmit={handleAuth} className="space-y-7">
                     <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={22} />
                         <input
                             type="email"
-                            placeholder="Email"
+                            placeholder="Email Address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200"
+                            className="w-full pl-12 pr-6 py-4 border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500 focus:border-transparent outline-none transition duration-300 text-lg"
                         />
                     </div>
                     <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={22} />
                         <input
                             type="password"
                             placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200"
+                            className="w-full pl-12 pr-6 py-4 border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500 focus:border-transparent outline-none transition duration-300 text-lg"
                         />
                     </div>
                     {!isLogin && (
                         <>
                             <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={22} />
                                 <input
                                     type="text"
-                                    placeholder="Your Name"
+                                    placeholder="Your Full Name"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     required
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200"
+                                    className="w-full pl-12 pr-6 py-4 border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500 focus:border-transparent outline-none transition duration-300 text-lg"
                                 />
                             </div>
                             <div className="relative">
-                                <Share2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                <Share2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={22} />
                                 <input
                                     type="text"
                                     placeholder="Referral Code (Optional)"
                                     value={referralCode}
                                     onChange={(e) => setReferralCode(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200"
+                                    className="w-full pl-12 pr-6 py-4 border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500 focus:border-transparent outline-none transition duration-300 text-lg"
                                 />
                             </div>
                         </>
                     )}
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:from-blue-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-70 text-xl"
                     >
-                        {isLogin ? 'Login' : 'Sign Up'}
+                        {isLogin ? 'Login Securely' : 'Sign Up Now'}
                     </button>
                 </form>
-                <div className="text-center mt-6">
-                    <p className="text-gray-600">
-                        {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+                <div className="text-center mt-8">
+                    <p className="text-gray-600 text-lg">
+                        {isLogin ? "Don't have an account yet?" : "Already part of the family?"}{' '}
                         <button
                             onClick={() => setIsLogin(!isLogin)}
-                            className="text-blue-600 font-semibold hover:underline"
+                            className="text-blue-700 font-semibold hover:underline hover:text-indigo-800 transition-colors duration-200"
                         >
-                            {isLogin ? 'Sign Up' : 'Login'}
+                            {isLogin ? 'Create Account' : 'Login Here'}
                         </button>
                     </p>
                 </div>
@@ -143,3 +144,4 @@ const Auth = ({ setCurrentPage }) => {
 };
 
 export default Auth;
+

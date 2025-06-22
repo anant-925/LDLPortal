@@ -1,107 +1,96 @@
 // src/FirebaseContext.js
-import React, { useState, useEffect, createContext } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, collection, getDoc, getDocs } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore'; // Import getDoc and doc
 
-export const FirebaseContext = createContext(null);
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Create the context
+export const FirebaseContext = createContext(null); // Default value is null initially
 
 export const FirebaseProvider = ({ children }) => {
-    const [db, setDb] = useState(null);
-    const [auth, setAuth] = useState(null);
     const [userId, setUserId] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
-    const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
+    const [isAuthReady, setIsAuthReady] = useState(false);
     const [message, setMessage] = useState('');
-    const [messageType, setMessageType] = useState('');
+    const [messageType, setMessageType] = useState('success'); // 'success' or 'error'
 
-    const showMessage = (msg, type) => {
+    // Function to display messages
+    const showMessage = (msg, type = 'success') => {
         setMessage(msg);
         setMessageType(type);
+        setTimeout(() => {
+            setMessage('');
+            setMessageType('success'); // Reset to default
+        }, 5000); // Message disappears after 5 seconds
     };
 
     const handleCloseMessage = () => {
         setMessage('');
-        setMessageType('');
     };
 
     useEffect(() => {
-        try {
-            // Use environment variables for Firebase config
-            const firebaseConfig = {
-                apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-                authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-                projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-                storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-                messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-                appId: process.env.REACT_APP_FIREBASE_APP_ID
-            };
-
-            if (!firebaseConfig.apiKey) {
-                console.error("Firebase config is missing. Please set up .env.local file.");
-                showMessage("Firebase setup incomplete. Check console.", "error");
-                setIsAuthReady(true); // Still set ready to unblock UI
-                return;
-            }
-
-            const app = initializeApp(firebaseConfig);
-            const firestoreDb = getFirestore(app);
-            const firebaseAuth = getAuth(app);
-
-            setDb(firestoreDb);
-            setAuth(firebaseAuth);
-
-            // Access __app_id from environment variable or set a default
-            const appId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-ldl-portal-app';
-
-            const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-                if (user) {
-                    setUserId(user.uid);
-                    // Listener for userProfile
-                    const userProfileRef = doc(firestoreDb, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
-                    onSnapshot(userProfileRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            setUserProfile({ id: docSnap.id, ...docSnap.data() });
-                        } else {
-                            // User authenticated but profile not created yet (e.g., new signup)
-                            setUserProfile(null);
-                        }
-                        setIsAuthReady(true);
-                    }, (error) => {
-                        console.error("Error listening to user profile:", error);
-                        showMessage("Failed to load user profile.", "error");
-                        setIsAuthReady(true);
-                    });
-                } else {
-                    setUserId(null);
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setUserId(user.uid);
+                // Fetch user profile from Firestore
+                try {
+                    const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
+                    const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
+                    const docSnap = await getDoc(userProfileRef);
+                    if (docSnap.exists()) {
+                        setUserProfile(docSnap.data());
+                    } else {
+                        console.warn("No user profile found for UID:", user.uid);
+                        setUserProfile(null);
+                        // Optionally show an error or redirect if profile is missing
+                        showMessage("User profile not found. Please contact support.", "error");
+                    }
+                } catch (error) {
+                    console.error("Error fetching user profile:", error);
                     setUserProfile(null);
-                    setIsAuthReady(true);
+                    showMessage("Error loading user profile: " + error.message, "error");
                 }
-            });
-
-            // Attempt to sign in anonymously if no initial auth token is provided
-            // This is primarily for the Canvas environment and allows initial Firebase access
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                 signInWithCustomToken(firebaseAuth, __initial_auth_token).catch((error) => {
-                    console.error("Error signing in with custom token:", error);
-                    // If custom token fails, proceed to anonymous sign-in or handle login flow
-                    signInAnonymously(firebaseAuth).catch(err => console.error("Anonymous sign-in failed:", err));
-                });
             } else {
-                signInAnonymously(firebaseAuth).catch(err => console.error("Anonymous sign-in failed:", err));
+                setUserId(null);
+                setUserProfile(null);
             }
-
-
-            return () => unsubscribe(); // Clean up auth listener on unmount
-        } catch (e) {
-            console.error("Firebase initialization failed:", e);
-            showMessage("Failed to initialize Firebase. Check your configuration.", "error");
             setIsAuthReady(true);
-        }
-    }, []); // Empty dependency array means this runs once on component mount
+        });
+
+        return () => unsubscribe();
+    }, [showMessage]); // Depend on showMessage if it's stable or memoized, otherwise remove
+
+    // The value provided to consumers of this context
+    const contextValue = {
+        auth,
+        db,
+        userId,
+        userProfile,
+        isAuthReady,
+        message,
+        messageType,
+        showMessage,
+        handleCloseMessage
+    };
 
     return (
-        <FirebaseContext.Provider value={{ db, auth, userId, userProfile, isAuthReady, showMessage, message, messageType, handleCloseMessage }}>
+        <FirebaseContext.Provider value={contextValue}>
             {children}
         </FirebaseContext.Provider>
     );

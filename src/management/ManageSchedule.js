@@ -57,48 +57,48 @@ const ManageSchedule = ({ userProfile }) => {
     };
 
     return (
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-lg mx-auto">
+        <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-lg mx-auto border-t-4 border-orange-500">
             {loading && <LoadingSpinner />}
-            <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Manage Teaching Schedule</h3>
-            <form onSubmit={handleCreateSchedule} className="space-y-5">
+            <h3 className="text-3xl font-bold text-gray-900 mb-8 text-center">Manage Teaching Schedule</h3>
+            <form onSubmit={handleCreateSchedule} className="space-y-6">
                 <div>
-                    <label htmlFor="scheduleDate" className="block text-gray-700 text-sm font-medium mb-2">Date</label>
+                    <label htmlFor="scheduleDate" className="block text-gray-700 text-lg font-medium mb-2">Date for Schedule</label>
                     <input
                         type="date"
                         id="scheduleDate"
                         value={scheduleDate}
                         onChange={(e) => setScheduleDate(e.target.value)}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm"
                     />
                 </div>
                 <div>
-                    <label htmlFor="scheduleCamp" className="block text-gray-700 text-sm font-medium mb-2">Camp</label>
+                    <label htmlFor="scheduleCamp" className="block text-gray-700 text-lg font-medium mb-2">Select Camp</label>
                     <select
                         id="scheduleCamp"
                         value={scheduleCamp}
                         onChange={(e) => setScheduleCamp(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm bg-white"
                     >
                         <option value="Camp 1">Camp 1</option>
                         <option value="Camp 2">Camp 2</option>
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="scheduleTopics" className="block text-gray-700 text-sm font-medium mb-2">Topics (comma-separated)</label>
+                    <label htmlFor="scheduleTopics" className="block text-gray-700 text-lg font-medium mb-2">Topics for the Day (comma-separated)</label>
                     <input
                         type="text"
                         id="scheduleTopics"
                         value={topics}
                         onChange={(e) => setTopics(e.target.value)}
-                        placeholder="e.g., Algebra, Geometry, Reading"
+                        placeholder="e.g., Geometry, Reading Comprehension, Python Basics"
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-lg shadow-sm"
                     />
                 </div>
                 <button
                     type="submit"
-                    className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 transform hover:scale-105"
+                    className="w-full bg-gradient-to-r from-orange-600 to-red-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg hover:from-orange-700 hover:to-red-800 transition-all duration-300 transform hover:scale-105 text-xl"
                 >
                     Create/Update Schedule
                 </button>
