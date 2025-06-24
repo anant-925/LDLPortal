@@ -1,10 +1,12 @@
-// src/Auth.js
+/* global __app_id */ // Declare __app_id as a global variable for ESLint
 import React, { useState, useContext } from 'react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { Mail, Lock, User, Share2 } from 'lucide-react';
+
+// These paths assume Auth.js is directly in the src/ directory.
 import { FirebaseContext } from './FirebaseContext';
 import LoadingSpinner from './components/LoadingSpinner';
-import { Mail, Lock, User, Share2 } from 'lucide-react';
 
 const Auth = ({ setCurrentPage }) => {
     const { auth, db, showMessage } = useContext(FirebaseContext);
@@ -20,36 +22,31 @@ const Auth = ({ setCurrentPage }) => {
         setLoading(true);
         try {
             if (isLogin) {
+                // Attempt to sign in
                 await signInWithEmailAndPassword(auth, email, password);
                 showMessage('Logged in successfully!', 'success');
             } else {
+                // Attempt to sign up
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
-                const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
+                // Using __app_id for consistency with Canvas environment, fallback to process.env
+                const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
 
-                // CRITICAL FIX: Create a document for the user's UID in the top-level 'users' collection
-                // This document can be empty or contain minimal data, but its existence
-                // allows the onSnapshot(collection(db, `artifacts/${appId}/users`)) to "see" the user.
+                // Create a document for the user's UID in the top-level 'users' collection
                 const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
-                await setDoc(userDocRef, { // Set a dummy field or just the UID to make it exist
+                await setDoc(userDocRef, {
                     uid: user.uid,
-                    // You could add other top-level user data here if needed, e.g., 'email': user.email
-                }, { merge: true }); // Use merge:true in case you want to add fields later without overwriting
+                }, { merge: true });
 
-                // Now, create/update the userProfile subcollection document
+                // Create the userProfile subcollection document
                 const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
 
-                // Check if referral code is valid
                 let referrerUid = null;
                 if (referralCode) {
-                    // Note: The query here uses where('userId', '==', referralCode),
-                    // which matches the 'userId' field in the userProfile document.
-                    // This relies on the userId field being stored in the userProfile.
                     const referrerQuery = query(collection(db, `artifacts/${appId}/users`), where('userId', '==', referralCode));
                     const referrerDocs = await getDocs(referrerQuery);
                     if (!referrerDocs.empty) {
-                        // Assuming the first document found is the correct referrer
-                        referrerUid = referrerDocs.docs[0].id; // Get the actual UID of the referrer
+                        referrerUid = referrerDocs.docs[0].id;
                     } else {
                         showMessage('Invalid referral code, but you can still sign up.', 'error');
                     }
@@ -59,21 +56,42 @@ const Auth = ({ setCurrentPage }) => {
                     uid: user.uid,
                     email: email,
                     name: name,
-                    role: 'volunteer', // Default role for new signups
+                    role: 'volunteer', // Default role for new sign-ups
                     topicsCanTeach: [],
                     totalAttendanceDays: 0,
                     referredBy: referrerUid,
                     referralCount: 0,
                     rewards: [],
                     createdAt: new Date(),
-                    userId: user.uid // Storing userId in userProfile for lookup
+                    userId: user.uid
                 });
                 showMessage('Account created successfully! Please log in.', 'success');
-                setIsLogin(true); // Switch to login after signup
+                setIsLogin(true); // Switch to login form after successful signup
             }
         } catch (error) {
-            console.error("Auth error:", error);
-            showMessage(error.message, 'error');
+            console.error("Auth error caught:", error.code, error.message);
+            let errorMessage = "An unexpected error occurred. Please try again.";
+
+            if (isLogin) {
+                // Firebase returns 'auth/invalid-credential' for both user-not-found and wrong-password
+                // We will now treat 'auth/invalid-credential' as an indicator to suggest signup
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                    errorMessage = 'Invalid email or password. No account found, please sign up.';
+                    setIsLogin(false); // Automatically switch to sign-up form for these errors
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Too many failed login attempts. Please try again later.';
+                }
+            } else { // Signup error handling
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email is already registered. Please log in instead.';
+                    setIsLogin(true); // Switch to login form
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Password is too weak. Please choose a stronger password.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'The email address is not valid.';
+                }
+            }
+            showMessage(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -109,6 +127,7 @@ const Auth = ({ setCurrentPage }) => {
                             className="w-full pl-12 pr-6 py-4 border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500 focus:border-transparent outline-none transition duration-300 text-lg"
                         />
                     </div>
+                    {/* Conditional rendering based on isLogin state */}
                     {!isLogin && (
                         <>
                             <div className="relative">
