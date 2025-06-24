@@ -25,23 +25,37 @@ const Auth = ({ setCurrentPage }) => {
             } else {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
-                // Use process.env.REACT_APP_APP_UNIQUE_ID for appId (e.g., 'ldlportal')
                 const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
-                const userRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
+
+                // CRITICAL FIX: Create a document for the user's UID in the top-level 'users' collection
+                // This document can be empty or contain minimal data, but its existence
+                // allows the onSnapshot(collection(db, `artifacts/${appId}/users`)) to "see" the user.
+                const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
+                await setDoc(userDocRef, { // Set a dummy field or just the UID to make it exist
+                    uid: user.uid,
+                    // You could add other top-level user data here if needed, e.g., 'email': user.email
+                }, { merge: true }); // Use merge:true in case you want to add fields later without overwriting
+
+                // Now, create/update the userProfile subcollection document
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
 
                 // Check if referral code is valid
                 let referrerUid = null;
                 if (referralCode) {
+                    // Note: The query here uses where('userId', '==', referralCode),
+                    // which matches the 'userId' field in the userProfile document.
+                    // This relies on the userId field being stored in the userProfile.
                     const referrerQuery = query(collection(db, `artifacts/${appId}/users`), where('userId', '==', referralCode));
                     const referrerDocs = await getDocs(referrerQuery);
                     if (!referrerDocs.empty) {
-                        referrerUid = referrerDocs.docs[0].id; // Get the actual UID
+                        // Assuming the first document found is the correct referrer
+                        referrerUid = referrerDocs.docs[0].id; // Get the actual UID of the referrer
                     } else {
                         showMessage('Invalid referral code, but you can still sign up.', 'error');
                     }
                 }
 
-                await setDoc(userRef, {
+                await setDoc(userProfileRef, {
                     uid: user.uid,
                     email: email,
                     name: name,
@@ -52,7 +66,7 @@ const Auth = ({ setCurrentPage }) => {
                     referralCount: 0,
                     rewards: [],
                     createdAt: new Date(),
-                    userId: user.uid // Storing userId for easier lookup in referrals
+                    userId: user.uid // Storing userId in userProfile for lookup
                 });
                 showMessage('Account created successfully! Please log in.', 'success');
                 setIsLogin(true); // Switch to login after signup
@@ -144,4 +158,3 @@ const Auth = ({ setCurrentPage }) => {
 };
 
 export default Auth;
-

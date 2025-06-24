@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { getAuth, signOut } from 'firebase/auth';
 import { onSnapshot, collection, query, where, doc, getDoc } from 'firebase/firestore';
-// Corrected: Added ListTodo, Calendar, Award to lucide-react import
 import { ListTodo, Calendar, Award } from 'lucide-react';
 import { FirebaseContext } from './FirebaseContext';
 import Auth from './Auth';
@@ -15,37 +14,34 @@ import MarkAttendance from './management/MarkAttendance';
 import ManageSchedule from './management/ManageSchedule';
 import Leaderboard from './shared/Leaderboard';
 import LoadingSpinner from './components/LoadingSpinner';
-import MessageBox from './components/MessageBox'; // Ensure this is imported
+import MessageBox from './components/MessageBox';
 
-import './index.css'; // Make sure this is imported
+import './index.css';
 
 function App() {
     const { db, auth, userId, userProfile, isAuthReady, message, messageType, showMessage, handleCloseMessage } = useContext(FirebaseContext);
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [students, setStudents] = useState([]);
-    const [allUsers, setAllUsers] = useState([]); // All user profiles for leaderboard/management
-    const [attendanceRecords, setAttendanceRecords] = useState([]); // Public attendance records
-    const [schedules, setSchedules] = useState([]); // Public schedules
+    const [allUsers, setAllUsers] = useState([]);
+    const [attendanceRecords, setAttendanceRecords] = useState([]);
+    const [schedules, setSchedules] = useState([]);
 
-    // Fetch and listen for all users (for leaderboard and management view)
     useEffect(() => {
         if (!db || !isAuthReady) {
-            console.log("App.js [allUsers]: Not ready - db:", !!db, "isAuthReady:", isAuthReady); // Log readiness
+            console.log("App.js [allUsers]: Not ready - db:", !!db, "isAuthReady:", isAuthReady);
             return;
         }
 
         const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
-        console.log("App.js [allUsers]: Using appId:", appId); // Log appId being used
+        console.log("App.js [allUsers]: Using appId:", appId);
 
-        // Listener for ALL user documents (UIDs) under 'users' collection
-        // This is necessary to get all UIDs to then fetch their profiles
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        console.log("App.js [allUsers]: Listening to collection:", usersCollectionRef.path); // Log the full collection path
+        console.log("App.js [allUsers]: Listening to collection:", usersCollectionRef.path);
 
         const unsubscribeAllUsers = onSnapshot(usersCollectionRef, (usersSnapshot) => {
-            console.log("App.js [allUsers]: Received snapshot. Docs count:", usersSnapshot.docs.length); // Log snapshot size
+            console.log("App.js [allUsers]: Received snapshot. Top-level User Docs count:", usersSnapshot.docs.length);
             if (usersSnapshot.empty) {
-                console.log("App.js [allUsers]: Users collection is empty.");
+                console.log("App.js [allUsers]: Top-level 'users' collection is empty. No user UIDs found directly.");
                 setAllUsers([]);
                 return;
             }
@@ -53,20 +49,19 @@ function App() {
             const fetchedUsers = [];
             const profilePromises = usersSnapshot.docs.map(userDoc => {
                 const userProfileDocRef = doc(db, `artifacts/${appId}/users/${userDoc.id}/userProfile`, userDoc.id);
-                console.log("App.js [allUsers]: Fetching user profile for UID:", userDoc.id, "Path:", userProfileDocRef.path); // Log individual profile path
                 return getDoc(userProfileDocRef).then(profileSnap => {
                     if (profileSnap.exists()) {
                         fetchedUsers.push({ id: profileSnap.id, ...profileSnap.data() });
                     } else {
-                        console.warn("App.js [allUsers]: User profile does not exist for:", userDoc.id); // Warn if profile is missing
+                        console.warn("App.js [allUsers]: User profile document does NOT exist for UID:", userDoc.id);
                     }
                 }).catch(error => {
-                    console.error(`App.js [allUsers]: Error fetching user profile for ${userDoc.id}:`, error); // Log individual fetch errors
+                    console.error(`App.js [allUsers]: Error fetching user profile for ${userDoc.id}:`, error);
                 });
             });
 
             Promise.all(profilePromises).then(() => {
-                console.log("App.js [allUsers]: All user profiles processed. Total fetched:", fetchedUsers.length, "Data:", fetchedUsers); // Final processed data log
+                console.log("App.js [allUsers]: All user profiles processed. Total fetched:", fetchedUsers.length, "Data:", fetchedUsers);
                 setAllUsers(fetchedUsers);
             }).catch(error => {
                 console.error("App.js [allUsers]: Error processing all user profiles promises:", error);
@@ -79,7 +74,6 @@ function App() {
         });
 
 
-        // Listener for current user's students taught
         let unsubscribeStudents = () => {};
         if (userId && userProfile?.role === 'volunteer') {
             const studentsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/studentsTaught`);
@@ -89,14 +83,13 @@ function App() {
                     ...doc.data()
                 }));
                 setStudents(fetchedStudents);
-                console.log("App.js: Students Taught data loaded:", fetchedStudents); // Log for debugging
+                console.log("App.js: Students Taught data loaded:", fetchedStudents);
             }, (error) => {
-                console.error("Error listening to students taught:", error); // Log for debugging
+                console.error("Error listening to students taught:", error);
                 showMessage("Failed to load your students' data.", "error");
             });
         }
 
-        // Listener for public attendance records
         const unsubscribeAttendance = onSnapshot(collection(db, `artifacts/${appId}/public/data/attendance`), (snapshot) => {
             const fetchedAttendance = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -108,7 +101,6 @@ function App() {
             showMessage("Failed to load attendance records.", "error");
         });
 
-        // Listener for public schedules
         const unsubscribeSchedules = onSnapshot(collection(db, `artifacts/${appId}/public/data/schedules`), (snapshot) => {
             const fetchedSchedules = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -133,7 +125,7 @@ function App() {
         try {
             await signOut(auth);
             showMessage('Logged out successfully!', 'success');
-            setCurrentPage('dashboard'); // Reset to dashboard for next login
+            setCurrentPage('dashboard');
         } catch (error) {
             console.error("Logout error:", error);
             showMessage('Logout failed: ' + error.message, 'error');
@@ -144,7 +136,8 @@ function App() {
         return <LoadingSpinner />;
     }
 
-    if (!userId) {
+    // Add a check for userProfile here before rendering content that depends on its properties
+    if (!userId || !userProfile) {
         return <Auth setCurrentPage={setCurrentPage} />;
     }
 
@@ -156,7 +149,6 @@ function App() {
                 setCurrentPage={setCurrentPage}
                 handleLogout={handleLogout}
             >
-                {/* Render components based on currentPage and user role */}
                 {currentPage === 'dashboard' && userProfile.role === 'volunteer' && (
                     <VolunteerDashboard
                         userProfile={userProfile}
