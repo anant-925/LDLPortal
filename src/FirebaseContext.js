@@ -161,9 +161,9 @@ export const FirebaseProvider = ({ children }) => {
                 const docProfileId = docSnap.id;
 
                 if (docAppId === currentAppIdForFilter && docUserId === docProfileId) {
-                    const data = docSnap.data(); // Get the data
-                    allUsersData.push({ id: docSnap.id, ...data }); // Push the data
-                    console.log(`  FirebaseContext [allUsers]: Doc INCLUDED. Path: ${fullPath}, Data:`, data); // Log the actual data
+                    const data = docSnap.data();
+                    allUsersData.push({ id: docSnap.id, ...data });
+                    console.log(`  FirebaseContext [allUsers]: Doc INCLUDED. Path: ${fullPath}, Data:`, data);
                 } else {
                     console.log(`  FirebaseContext [allUsers]: Doc EXCLUDED. Path: ${fullPath}, AppId or userId/profileId mismatch.`);
                 }
@@ -185,7 +185,7 @@ export const FirebaseProvider = ({ children }) => {
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/attendance`), (snapshot) => {
             const attendanceData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setAttendanceRecords(attendanceData);
-            console.log("FirebaseContext: Public attendance records snapshot received. Count:", attendanceData.length);
+            console.log("FirebaseContext: Public attendance records snapshot received. Count:", attendanceData.length, "Data:", attendanceData); // Log data
         }, (error) => {
             console.error("FirebaseContext: Error listening to attendance records:", error);
         });
@@ -199,7 +199,7 @@ export const FirebaseProvider = ({ children }) => {
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/schedules`), (snapshot) => {
             const schedulesData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setSchedules(schedulesData);
-            console.log("FirebaseContext: Public schedules snapshot received. Count:", schedulesData.length);
+            console.log("FirebaseContext: Public schedules snapshot received. Count:", schedulesData.length, "Data:", schedulesData); // Log data
         }, (error) => {
             console.error("FirebaseContext: Error listening to schedules:", error);
         });
@@ -211,18 +211,19 @@ export const FirebaseProvider = ({ children }) => {
         let unsubscribeStudents = () => {};
         if (db && userId && userProfile && userProfile.role === 'volunteer') {
             const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-students-fallback');
+            // Listen to student data specific to the current authenticated volunteer
             unsubscribeStudents = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/studentsTaught`), (snapshot) => {
                 const studentsData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                 setStudents(studentsData);
-                console.log("FirebaseContext: Student-specific studentsTaught snapshot received. Count:", studentsData.length);
+                console.log("FirebaseContext: Student-specific studentsTaught snapshot received. Count:", studentsData.length, "Data:", studentsData); // Log data
             }, (error) => {
                 console.error("FirebaseContext: Error listening to students taught:", error);
             });
         } else {
-            setStudents([]);
+            setStudents([]); // Clear students if not a volunteer or userProfile not ready
         }
         return () => unsubscribeStudents();
-    }, [db, userId, userProfile?.role]);
+    }, [db, userId, userProfile?.role]); // Dependencies: db, userId, userProfile.role
 
     const contextValue = {
         db,
@@ -234,10 +235,10 @@ export const FirebaseProvider = ({ children }) => {
         messageType,
         showMessage,
         handleCloseMessage,
-        allUsers, // This will now be updated in real-time
+        allUsers,
         attendanceRecords,
-        schedules,
-        students,
+        schedules, // Provide schedules
+        students, // Provide students
     };
 
     return (
