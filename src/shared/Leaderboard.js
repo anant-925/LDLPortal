@@ -45,7 +45,16 @@ const Leaderboard = ({ allUsers }) => {
         if (index === 0) return 'from-amber-400 to-amber-600'; // Gold
         if (index === 1) return 'from-gray-300 to-gray-500'; // Silver
         if (index === 2) return 'from-orange-300 to-orange-500'; // Bronze
-        return 'from-white to-gray-50'; // Default
+        return 'from-white to-gray-50'; // Default - changed to provide a light background
+    };
+
+    const getTextColorForDays = (index) => {
+        // Use a dark color that's visible on the lighter backgrounds
+        // and also stands out on the gradient ones if needed.
+        if (index === 0) return 'text-blue-900'; // Darker blue for Gold
+        if (index === 1) return 'text-blue-800'; // Darker blue for Silver
+        if (index === 2) return 'text-blue-700'; // Darker blue for Bronze
+        return 'text-gray-800'; // Dark gray for default white/gray background
     };
 
     return (
@@ -89,7 +98,7 @@ const Leaderboard = ({ allUsers }) => {
                                 className={`flex items-center p-6 rounded-2xl shadow-lg border border-gray-200
                                 bg-gradient-to-r ${getCardColors(index)} transform hover:scale-[1.01] transition-transform duration-200 ease-out`}
                             >
-                                <span className="text-3xl font-extrabold text-white mr-6 w-10 text-center">
+                                <span className="text-3xl font-extrabold text-gray-800 mr-6 w-10 text-center">
                                     {index + 1}.
                                 </span>
                                 <div className="flex-grow">
@@ -97,10 +106,10 @@ const Leaderboard = ({ allUsers }) => {
                                     <p className="text-md text-gray-700">{user.email}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-3xl font-extrabold text-white">
+                                    <p className={`text-3xl font-extrabold ${getTextColorForDays(index)}`}> {/* Applied new text color class here */}
                                         {user.totalAttendanceDays || 0} Days
                                     </p>
-                                    <p className="text-lg font-semibold text-white">
+                                    <p className="text-lg font-semibold text-gray-700"> {/* Changed badge text to darker for visibility */}
                                         {getRankBadge(index)}
                                     </p>
                                 </div>
