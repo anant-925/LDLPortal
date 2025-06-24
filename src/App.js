@@ -1,142 +1,43 @@
-// src/App.js
-import React, { useState, useEffect, useContext } from 'react';
-import { getAuth, signOut } from 'firebase/auth';
-import { onSnapshot, collection, query, where, doc, getDoc } from 'firebase/firestore';
+/* global __app_id */
+import React, { useState, useContext } from 'react';
+import { signOut } from 'firebase/auth';
+import { FirebaseContext } from './FirebaseContext'; // Path: src/FirebaseContext.js
+import Auth from './Auth'; // Path: src/Auth.js
+import DashboardLayout from './components/DashboardLayout'; // Path: src/components/DashboardLayout.js
+import VolunteerDashboard from './volunteer/VolunteerDashboard'; // Path: src/volunteer/VolunteerDashboard.js
+import AddStudentForm from './volunteer/AddStudentForm'; // Path: src/volunteer/AddStudentForm.js
+import UpdateTopicForm from './volunteer/UpdateTopicForm'; // Path: src/volunteer/UpdateTopicForm.js
+import ReferralSection from './volunteer/ReferralSection'; // Path: src/volunteer/ReferralSection.js
+import MarkAttendance from './management/MarkAttendance'; // Path: src/management/MarkAttendance.js
+import ManageSchedule from './management/ManageSchedule'; // Path: src/management/ManageSchedule.js
+import Leaderboard from './shared/Leaderboard'; // Path: src/shared/Leaderboard.js
+import LoadingSpinner from './components/LoadingSpinner'; // Path: src/components/LoadingSpinner.js
+import MessageBox from './components/MessageBox'; // Path: src/components/MessageBox.js
 import { ListTodo, Calendar, Award } from 'lucide-react';
-import { FirebaseContext } from './FirebaseContext';
-import Auth from './Auth';
-import DashboardLayout from './components/DashboardLayout';
-import VolunteerDashboard from './volunteer/VolunteerDashboard';
-import AddStudentForm from './volunteer/AddStudentForm';
-import UpdateTopicForm from './volunteer/UpdateTopicForm';
-import ReferralSection from './volunteer/ReferralSection';
-import MarkAttendance from './management/MarkAttendance';
-import ManageSchedule from './management/ManageSchedule';
-import Leaderboard from './shared/Leaderboard';
-import LoadingSpinner from './components/LoadingSpinner';
-import MessageBox from './components/MessageBox';
-
-import './index.css';
+import './index.css'; // Path: src/index.css
 
 function App() {
-    const { db, auth, userId, userProfile, isAuthReady, message, messageType, showMessage, handleCloseMessage } = useContext(FirebaseContext);
+    const { auth, userId, userProfile, loading, message, messageType, showMessage, handleCloseMessage } = useContext(FirebaseContext);
     const [currentPage, setCurrentPage] = useState('dashboard');
-    const [students, setStudents] = useState([]);
-    const [allUsers, setAllUsers] = useState([]);
-    const [attendanceRecords, setAttendanceRecords] = useState([]);
-    const [schedules, setSchedules] = useState([]);
 
-    useEffect(() => {
-        if (!db || !isAuthReady) {
-            console.log("App.js [allUsers]: Not ready - db:", !!db, "isAuthReady:", isAuthReady);
-            return;
-        }
-
-        const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
-        console.log("App.js [allUsers]: Using appId:", appId);
-
-        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        console.log("App.js [allUsers]: Listening to collection:", usersCollectionRef.path);
-
-        const unsubscribeAllUsers = onSnapshot(usersCollectionRef, (usersSnapshot) => {
-            console.log("App.js [allUsers]: Received snapshot. Top-level User Docs count:", usersSnapshot.docs.length);
-            if (usersSnapshot.empty) {
-                console.log("App.js [allUsers]: Top-level 'users' collection is empty. No user UIDs found directly.");
-                setAllUsers([]);
-                return;
-            }
-
-            const fetchedUsers = [];
-            const profilePromises = usersSnapshot.docs.map(userDoc => {
-                const userProfileDocRef = doc(db, `artifacts/${appId}/users/${userDoc.id}/userProfile`, userDoc.id);
-                return getDoc(userProfileDocRef).then(profileSnap => {
-                    if (profileSnap.exists()) {
-                        fetchedUsers.push({ id: profileSnap.id, ...profileSnap.data() });
-                    } else {
-                        console.warn("App.js [allUsers]: User profile document does NOT exist for UID:", userDoc.id);
-                    }
-                }).catch(error => {
-                    console.error(`App.js [allUsers]: Error fetching user profile for ${userDoc.id}:`, error);
-                });
-            });
-
-            Promise.all(profilePromises).then(() => {
-                console.log("App.js [allUsers]: All user profiles processed. Total fetched:", fetchedUsers.length, "Data:", fetchedUsers);
-                setAllUsers(fetchedUsers);
-            }).catch(error => {
-                console.error("App.js [allUsers]: Error processing all user profiles promises:", error);
-                showMessage("Failed to process all user profiles.", "error");
-            });
-
-        }, (error) => {
-            console.error("App.js [allUsers]: Error listening to all users (main collection):", error);
-            showMessage("Failed to load user list. Check console for details.", "error");
-        });
-
-
-        let unsubscribeStudents = () => {};
-        if (userId && userProfile?.role === 'volunteer') {
-            const studentsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/studentsTaught`);
-            unsubscribeStudents = onSnapshot(studentsCollectionRef, (snapshot) => {
-                const fetchedStudents = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setStudents(fetchedStudents);
-                console.log("App.js: Students Taught data loaded:", fetchedStudents);
-            }, (error) => {
-                console.error("Error listening to students taught:", error);
-                showMessage("Failed to load your students' data.", "error");
-            });
-        }
-
-        const unsubscribeAttendance = onSnapshot(collection(db, `artifacts/${appId}/public/data/attendance`), (snapshot) => {
-            const fetchedAttendance = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setAttendanceRecords(fetchedAttendance);
-        }, (error) => {
-            console.error("Error listening to attendance records:", error);
-            showMessage("Failed to load attendance records.", "error");
-        });
-
-        const unsubscribeSchedules = onSnapshot(collection(db, `artifacts/${appId}/public/data/schedules`), (snapshot) => {
-            const fetchedSchedules = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setSchedules(fetchedSchedules);
-        }, (error) => {
-            console.error("Error listening to schedules:", error);
-            showMessage("Failed to load schedules.", "error");
-        });
-
-        return () => {
-            unsubscribeAllUsers();
-            unsubscribeStudents();
-            unsubscribeAttendance();
-            unsubscribeSchedules();
-        };
-    }, [db, userId, userProfile, isAuthReady, showMessage]);
-
+    // Destructure data from context
+    const { allUsers, attendanceRecords, schedules, students } = useContext(FirebaseContext);
 
     const handleLogout = async () => {
         try {
             await signOut(auth);
             showMessage('Logged out successfully!', 'success');
-            setCurrentPage('dashboard');
+            setCurrentPage('auth'); // Redirect to auth page after logout
         } catch (error) {
             console.error("Logout error:", error);
             showMessage('Logout failed: ' + error.message, 'error');
         }
     };
 
-    if (!isAuthReady) {
+    if (loading) {
         return <LoadingSpinner />;
     }
 
-    // Add a check for userProfile here before rendering content that depends on its properties
     if (!userId || !userProfile) {
         return <Auth setCurrentPage={setCurrentPage} />;
     }

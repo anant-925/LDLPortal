@@ -1,22 +1,16 @@
-// src/volunteer/VolunteerDashboard.js
-import React, { useState, useContext, useEffect } from 'react'; // Added useState and useEffect
-import { User, GraduationCap, Calendar, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'; // Added Chevron icons
+import React, { useState, useContext, useEffect } from 'react';
+import { User, GraduationCap, Calendar, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FirebaseContext } from '../FirebaseContext';
 
 const VolunteerDashboard = ({ userProfile, students, attendanceRecords, schedules }) => {
     const { showMessage } = useContext(FirebaseContext);
 
-    // State for calendar navigation
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    // Filter attendance for the current volunteer
     const volunteerAttendance = attendanceRecords.filter(rec => rec.volunteerId === userProfile?.uid);
-
-    // Calculate total attendance days (should ideally come from userProfile, but can compute for display)
     const uniqueAttendanceDates = new Set(volunteerAttendance.map(rec => new Date(rec.date.seconds * 1000).toDateString()));
     const totalAttendanceDays = userProfile?.totalAttendanceDays || uniqueAttendanceDates.size;
 
-    // Calendar Data preparation
     const displayMonth = currentDate.getMonth();
     const displayYear = currentDate.getFullYear();
 

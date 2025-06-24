@@ -1,6 +1,6 @@
-// src/management/MarkAttendance.js
+/* global __app_id */
 import React, { useState, useContext } from 'react';
-import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseContext } from '../FirebaseContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -23,20 +23,18 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
         }
 
         try {
-            const appId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-ldl-portal-app';
+            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
             const attendanceRef = collection(db, `artifacts/${appId}/public/data/attendance`);
             const userProfileRef = doc(db, `artifacts/${appId}/users/${selectedVolunteerId}/userProfile`, selectedVolunteerId);
 
             // Check if attendance already exists for this volunteer, date, and camp
             const q = query(attendanceRef,
                 where('volunteerId', '==', selectedVolunteerId),
-                where('camp', '==', selectedCamp)
+                where('camp', '==', selectedCamp),
+                where('date', '==', new Date(selectedDate)) // Exact date match
             );
             const querySnapshot = await getDocs(q);
-            const attendanceExists = querySnapshot.docs.some(doc => {
-                const docDate = new Date(doc.data().date.seconds * 1000).toISOString().split('T')[0];
-                return docDate === selectedDate;
-            });
+            const attendanceExists = !querySnapshot.empty; // If any document exists, attendance is marked
 
 
             if (attendanceExists) {
@@ -49,7 +47,7 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
             await addDoc(attendanceRef, {
                 volunteerId: selectedVolunteerId,
                 camp: selectedCamp,
-                date: new Date(selectedDate),
+                date: new Date(selectedDate), // Store as Firestore Timestamp
                 attendedBy: userProfile.uid,
                 markedAt: new Date()
             });
@@ -58,9 +56,12 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
             const volunteerDoc = await getDoc(userProfileRef);
             if (volunteerDoc.exists()) {
                 const currentAttendance = volunteerDoc.data().totalAttendanceDays || 0;
+                console.log(`MarkAttendance: Current totalAttendanceDays before update for ${selectedVolunteerId}: ${currentAttendance}`);
                 await updateDoc(userProfileRef, {
                     totalAttendanceDays: currentAttendance + 1
                 });
+                console.log(`MarkAttendance: New totalAttendanceDays for ${selectedVolunteerId}: ${currentAttendance + 1}`);
+                console.log(`MarkAttendance: Successfully updated volunteer profile for ${selectedVolunteerId}!`);
 
                 // Check for referral reward
                 const referredBy = volunteerDoc.data().referredBy;
@@ -78,6 +79,8 @@ const MarkAttendance = ({ userProfile, allUsers, attendanceRecords }) => {
                         showMessage(`Referral bonus awarded to ${referrerData.name}!`, 'success');
                     }
                 }
+            } else {
+                 console.warn(`MarkAttendance: Volunteer profile document for ${selectedVolunteerId} does not exist for update.`);
             }
 
             showMessage('Attendance marked successfully!', 'success');
