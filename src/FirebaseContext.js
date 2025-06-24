@@ -1,4 +1,4 @@
-/* global __app_id, __firebase_config, __initial_auth_token */
+/* global __app_id, __firebase_config, __initial_auth_token */ // ALL global variables MUST be declared here for ESLint
 import React, { useState, useEffect, createContext, useCallback } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
@@ -35,20 +35,28 @@ export const FirebaseProvider = ({ children }) => {
             let firebaseConfig;
             let currentAppId = 'default-app-id-fallback';
 
+            // Determine Firebase Config based on environment
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 try {
                     firebaseConfig = JSON.parse(__firebase_config);
-                    console.log("FirebaseContext: Attempting to use Canvas-provided __firebase_config.");
+                    console.log("FirebaseContext: Using Canvas-provided __firebase_config.");
                     if (typeof __app_id !== 'undefined' && __app_id) {
                         currentAppId = __app_id;
                     }
                 } catch (e) {
-                    console.error("FirebaseContext: Error parsing __firebase_config. Fallback to process.env.", e);
+                    console.error("FirebaseContext: Error parsing __firebase_config, falling back to process.env.", e);
+                    firebaseConfig = {
+                        apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+                        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+                        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+                        storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+                        messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+                        appId: process.env.REACT_APP_FIREBASE_APP_ID
+                    };
+                    currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-app-id';
                 }
-            }
-
-            if (!firebaseConfig || !firebaseConfig.projectId || !firebaseConfig.apiKey) {
-                console.log("FirebaseContext: __firebase_config not fully valid or not found. Using process.env for Firebase config.");
+            } else {
+                console.log("FirebaseContext: __firebase_config not found, using process.env for Firebase config.");
                 firebaseConfig = {
                     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
                     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -57,28 +65,20 @@ export const FirebaseProvider = ({ children }) => {
                     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
                     appId: process.env.REACT_APP_FIREBASE_APP_ID
                 };
-                currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-app-id-env-fallback';
+                currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-app-id';
             }
 
+            // Ensure projectId is present
             if (!firebaseConfig.projectId) {
-                console.error("FirebaseContext: CRITICAL - projectId is missing from Firebase config. Firebase will not function correctly.");
-                showMessage("CRITICAL ERROR: Firebase Project ID missing. Check console.", "error");
-                setLoading(false);
-                return;
-            }
-            if (!firebaseConfig.apiKey) {
-                console.error("FirebaseContext: CRITICAL - apiKey is missing from Firebase config. Authentication will fail.");
-                showMessage("CRITICAL ERROR: Firebase API Key missing. Check console.", "error");
-                setLoading(false);
-                return;
+                console.warn("FirebaseContext: 'projectId' is missing in firebaseConfig. Please ensure your Firebase credentials are correctly set. Data access might fail.");
+                firebaseConfig.projectId = currentAppId;
             }
 
+            // Initialize Firebase app if not already initialized
             if (!getApps().length) {
                 appInstance = initializeApp(firebaseConfig);
-                console.log("FirebaseContext: Initialized new Firebase app:", firebaseConfig.projectId);
             } else {
                 appInstance = getApp();
-                console.log("FirebaseContext: Using existing Firebase app.");
             }
 
             const firestoreDb = getFirestore(appInstance);
@@ -117,9 +117,10 @@ export const FirebaseProvider = ({ children }) => {
                 }
             });
 
+            // Authentication logic: prioritize __initial_auth_token for Canvas
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 signInWithCustomToken(firebaseAuth, __initial_auth_token).catch((error) => {
-                    console.error("FirebaseContext: Error signing in with custom token (Canvas):", error);
+                    console.error("FirebaseContext: Error signing in with custom token:", error);
                     signInAnonymously(firebaseAuth).catch(err => console.error("Anonymous sign-in failed:", err));
                 });
             } else {
@@ -138,7 +139,7 @@ export const FirebaseProvider = ({ children }) => {
     useEffect(() => {
         if (!db) return;
 
-        const currentAppIdForFilter = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-filter-fallback');
+        const currentAppIdForFilter = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
         console.log("FirebaseContext [allUsers]: AppId being used for filtering collection group:", currentAppIdForFilter);
 
         const userProfilesCollectionGroupRef = collectionGroup(db, 'userProfile');
@@ -160,16 +161,19 @@ export const FirebaseProvider = ({ children }) => {
                 const docUserId = pathParts[3];
                 const docProfileId = docSnap.id;
 
+                console.log(`  Doc Path: ${fullPath}`);
+                console.log(`    Parsed: appId=${docAppId}, userId=${docUserId}, profileId=${docProfileId}`);
+                console.log(`    Filtering with currentAppIdForFilter: ${currentAppIdForFilter}`);
+
                 if (docAppId === currentAppIdForFilter && docUserId === docProfileId) {
-                    const data = docSnap.data();
-                    allUsersData.push({ id: docSnap.id, ...data });
-                    console.log(`  FirebaseContext [allUsers]: Doc INCLUDED. Path: ${fullPath}, Data:`, data);
+                    allUsersData.push({ id: docSnap.id, ...docSnap.data() });
+                    console.log("    => Doc INCLUDED for leaderboard. Data:", docSnap.data());
                 } else {
-                    console.log(`  FirebaseContext [allUsers]: Doc EXCLUDED. Path: ${fullPath}, AppId or userId/profileId mismatch.`);
+                    console.log("    => Doc EXCLUDED (AppId or userId/profileId mismatch).");
                 }
             });
             setAllUsers(allUsersData);
-            console.log("FirebaseContext [allUsers]: Real-time update - All users fetched. Count after filtering:", allUsersData.length, "Final Array:", allUsersData);
+            console.log("FirebaseContext [allUsers]: Real-time update - All users fetched. Count after filtering:", allUsersData.length, "Data:", allUsersData);
         }, (error) => {
             console.error("FirebaseContext [allUsers]: Error listening to all user profiles (collection group):", error);
             showMessage("Failed to load all users list in real-time. Check console for details.", "error");
@@ -181,11 +185,11 @@ export const FirebaseProvider = ({ children }) => {
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     useEffect(() => {
         if (!db) return;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-attendance-fallback');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/attendance`), (snapshot) => {
             const attendanceData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setAttendanceRecords(attendanceData);
-            console.log("FirebaseContext: Public attendance records snapshot received. Count:", attendanceData.length, "Data:", attendanceData); // Log data
+            console.log("FirebaseContext: Public attendance records snapshot received. Count:", attendanceData.length);
         }, (error) => {
             console.error("FirebaseContext: Error listening to attendance records:", error);
         });
@@ -195,11 +199,11 @@ export const FirebaseProvider = ({ children }) => {
     const [schedules, setSchedules] = useState([]);
     useEffect(() => {
         if (!db) return;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-schedules-fallback');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/schedules`), (snapshot) => {
             const schedulesData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setSchedules(schedulesData);
-            console.log("FirebaseContext: Public schedules snapshot received. Count:", schedulesData.length, "Data:", schedulesData); // Log data
+            console.log("FirebaseContext: Public schedules snapshot received. Count:", schedulesData.length);
         }, (error) => {
             console.error("FirebaseContext: Error listening to schedules:", error);
         });
@@ -210,20 +214,19 @@ export const FirebaseProvider = ({ children }) => {
     useEffect(() => {
         let unsubscribeStudents = () => {};
         if (db && userId && userProfile && userProfile.role === 'volunteer') {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-students-fallback');
-            // Listen to student data specific to the current authenticated volunteer
+            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
             unsubscribeStudents = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/studentsTaught`), (snapshot) => {
                 const studentsData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                 setStudents(studentsData);
-                console.log("FirebaseContext: Student-specific studentsTaught snapshot received. Count:", studentsData.length, "Data:", studentsData); // Log data
+                console.log("FirebaseContext: Student-specific studentsTaught snapshot received. Count:", studentsData.length);
             }, (error) => {
                 console.error("FirebaseContext: Error listening to students taught:", error);
             });
         } else {
-            setStudents([]); // Clear students if not a volunteer or userProfile not ready
+            setStudents([]);
         }
         return () => unsubscribeStudents();
-    }, [db, userId, userProfile?.role]); // Dependencies: db, userId, userProfile.role
+    }, [db, userId, userProfile?.role]);
 
     const contextValue = {
         db,
@@ -237,8 +240,8 @@ export const FirebaseProvider = ({ children }) => {
         handleCloseMessage,
         allUsers,
         attendanceRecords,
-        schedules, // Provide schedules
-        students, // Provide students
+        schedules,
+        students,
     };
 
     return (
