@@ -1,8 +1,8 @@
-/* global __app_id, __firebase_config, __initial_auth_token */
+/* global __app_id, __firebase_config, __initial_auth_token */ // ALL global variables MUST be declared here for ESLint
 import React, { useState, useEffect, createContext, useCallback } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, collection, collectionGroup, setDoc, getDoc } from 'firebase/firestore'; // Removed query, where, getDocs
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc, onSnapshot, collection, collectionGroup, getDocs } from 'firebase/firestore';
 
 export const FirebaseContext = createContext(null);
 
@@ -11,7 +11,7 @@ export const FirebaseProvider = ({ children }) => {
     const [auth, setAuth] = useState(null);
     const [userId, setUserId] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
-    const [loading, setLoading] = useState(true); // Overall Firebase initialization loading
+    const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
 
@@ -29,82 +29,34 @@ export const FirebaseProvider = ({ children }) => {
         setMessageType('');
     };
 
-    // Function to sign in with Google
-    const signInWithGoogle = useCallback(async () => {
-        if (!auth || !db) {
-            showMessage("Firebase services not initialized. Please wait.", "error");
-            return;
-        }
-        setLoading(true); // Indicate global loading for Google sign-in process
-        try {
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-
-            // Check if user profile already exists, if not, create it
-            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
-            const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, user.uid);
-            const userProfileSnap = await getDoc(userProfileRef); // Use getDoc here
-
-            if (!userProfileSnap.exists()) {
-                await setDoc(userProfileRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    name: user.displayName || 'Google User',
-                    role: 'volunteer', // Default role for new sign-ups
-                    topicsCanTeach: [],
-                    totalAttendanceDays: 0,
-                    referredBy: null, // Google sign-in doesn't use referral codes directly
-                    referralCount: 0,
-                    rewards: [],
-                    createdAt: new Date(),
-                    userId: user.uid // Storing UID as userId for consistency
-                });
-                showMessage('Signed in with Google! Welcome!', 'success');
-            } else {
-                showMessage('Signed in with Google! Welcome back!', 'success');
-            }
-            return user; // Return the user object
-        } catch (error) {
-            console.error("FirebaseContext: Google Sign-In failed:", error);
-            let errorMessage = "Google Sign-In failed. Please try again.";
-            if (error.code === 'auth/popup-closed-by-user') {
-                errorMessage = "Google Sign-In was cancelled.";
-            } else if (error.code === 'auth/cancelled-popup-request') {
-                errorMessage = "Another popup was opened. Please try again.";
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
-                errorMessage = "An account with this email already exists using a different sign-in method.";
-            }
-            showMessage(errorMessage, "error");
-            return null; // Indicate failure
-        } finally {
-            setLoading(false); // End global loading
-        }
-    }, [auth, db, showMessage]);
-
-
     useEffect(() => {
         let appInstance;
         try {
-            let firebaseConfig = {};
+            let firebaseConfig;
             let currentAppId = 'default-app-id-fallback';
 
+            // Determine Firebase Config based on environment
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 try {
-                    const parsedConfig = JSON.parse(__firebase_config);
-                    if (parsedConfig && parsedConfig.projectId && parsedConfig.apiKey) {
-                        firebaseConfig = parsedConfig;
-                        console.log("FirebaseContext: Attempting to use Canvas-provided __firebase_config.");
-                    } else {
-                        console.warn("FirebaseContext: Canvas-provided __firebase_config is incomplete or invalid. Falling back to process.env.");
+                    firebaseConfig = JSON.parse(__firebase_config);
+                    console.log("FirebaseContext: Using Canvas-provided __firebase_config.");
+                    if (typeof __app_id !== 'undefined' && __app_id) {
+                        currentAppId = __app_id;
                     }
                 } catch (e) {
-                    console.error("FirebaseContext: Error parsing __firebase_config. Falling back to process.env.", e);
+                    console.error("FirebaseContext: Error parsing __firebase_config, falling back to process.env.", e);
+                    firebaseConfig = {
+                        apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+                        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+                        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+                        storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+                        messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+                        appId: process.env.REACT_APP_FIREBASE_APP_ID
+                    };
+                    currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-app-id';
                 }
-            }
-
-            if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-                console.log("FirebaseContext: Retrieving Firebase config from process.env.");
+            } else {
+                console.log("FirebaseContext: __firebase_config not found, using process.env for Firebase config.");
                 firebaseConfig = {
                     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
                     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -113,27 +65,20 @@ export const FirebaseProvider = ({ children }) => {
                     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
                     appId: process.env.REACT_APP_FIREBASE_APP_ID
                 };
-                currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-env-fallback';
-            } else {
-                 currentAppId = typeof __app_id !== 'undefined' && __app_id ? __app_id : firebaseConfig.projectId;
+                currentAppId = process.env.REACT_APP_APP_UNIQUE_ID || firebaseConfig.projectId || 'default-app-id';
             }
 
-            console.log("FirebaseContext: Final firebaseConfig being used:", firebaseConfig);
-            console.log("FirebaseContext: Final currentAppId being used:", currentAppId);
-
-            if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-                console.error("FirebaseContext: CRITICAL ERROR - Firebase configuration is incomplete. Missing projectId or apiKey.");
-                showMessage("CRITICAL ERROR: Firebase config missing. Check Vercel Environment Variables and browser console.", "error");
-                setLoading(false);
-                return;
+            // Ensure projectId is present
+            if (!firebaseConfig.projectId) {
+                console.warn("FirebaseContext: 'projectId' is missing in firebaseConfig. Please ensure your Firebase credentials are correctly set. Data access might fail.");
+                firebaseConfig.projectId = currentAppId;
             }
 
+            // Initialize Firebase app if not already initialized
             if (!getApps().length) {
                 appInstance = initializeApp(firebaseConfig);
-                console.log("FirebaseContext: Initialized new Firebase app:", firebaseConfig.projectId);
             } else {
                 appInstance = getApp();
-                console.log("FirebaseContext: Using existing Firebase app.");
             }
 
             const firestoreDb = getFirestore(appInstance);
@@ -156,9 +101,7 @@ export const FirebaseProvider = ({ children }) => {
                         } else {
                             setUserProfile(null);
                             console.warn("FirebaseContext: User profile not found in Firestore for UID:", user.uid);
-                            if (user.isAnonymous === false) {
-                                showMessage("User profile not found. Please contact support.", "error");
-                            }
+                            showMessage("User profile not found. Please contact support.", "error");
                         }
                         setLoading(false);
                     }, (error) => {
@@ -174,6 +117,7 @@ export const FirebaseProvider = ({ children }) => {
                 }
             });
 
+            // Authentication logic: prioritize __initial_auth_token for Canvas
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 signInWithCustomToken(firebaseAuth, __initial_auth_token).catch((error) => {
                     console.error("FirebaseContext: Error signing in with custom token:", error);
@@ -185,66 +129,81 @@ export const FirebaseProvider = ({ children }) => {
 
             return () => unsubscribeAuth();
         } catch (e) {
-            console.error("Firebase initialization failed in outer try-catch:", e);
-            showMessage("Failed to initialize the application. Please try again later. (Check console)", "error");
+            console.error("Firebase initialization failed:", e);
+            showMessage("Failed to initialize the application. Please try again later.", "error");
             setLoading(false);
         }
     }, [showMessage]);
-
 
     const [allUsers, setAllUsers] = useState([]);
     useEffect(() => {
         if (!db) return;
 
-        const currentAppIdForFilter = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-filter-fallback');
+        const currentAppIdForFilter = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
+        console.log("FirebaseContext [allUsers]: AppId being used for filtering collection group:", currentAppIdForFilter);
 
         const userProfilesCollectionGroupRef = collectionGroup(db, 'userProfile');
         
         const unsubscribeAllUsers = onSnapshot(userProfilesCollectionGroupRef, (snapshot) => {
             const allUsersData = [];
+            console.log("FirebaseContext [allUsers]: Collection group snapshot received. Total docs in snapshot:", snapshot.docs.length);
+
             snapshot.forEach(docSnap => {
                 const fullPath = docSnap.ref.path;
                 const pathParts = fullPath.split('/');
                 
+                if (pathParts.length < 6 || pathParts[0] !== 'artifacts' || pathParts[2] !== 'users' || pathParts[4] !== 'userProfile') {
+                    console.warn(`FirebaseContext [allUsers]: Unexpected document path format: ${fullPath}. Skipping.`);
+                    return;
+                }
+
                 const docAppId = pathParts[1];
                 const docUserId = pathParts[3];
                 const docProfileId = docSnap.id;
 
+                console.log(`  Doc Path: ${fullPath}`);
+                console.log(`    Parsed: appId=${docAppId}, userId=${docUserId}, profileId=${docProfileId}`);
+                console.log(`    Filtering with currentAppIdForFilter: ${currentAppIdForFilter}`);
+
                 if (docAppId === currentAppIdForFilter && docUserId === docProfileId) {
                     allUsersData.push({ id: docSnap.id, ...docSnap.data() });
+                    console.log("    => Doc INCLUDED for leaderboard. Data:", docSnap.data());
+                } else {
+                    console.log("    => Doc EXCLUDED (AppId or userId/profileId mismatch).");
                 }
             });
             setAllUsers(allUsersData);
+            console.log("FirebaseContext [allUsers]: Real-time update - All users fetched. Count after filtering:", allUsersData.length, "Data:", allUsersData);
         }, (error) => {
             console.error("FirebaseContext [allUsers]: Error listening to all user profiles (collection group):", error);
-            showMessage("Failed to load all users list in real-time. Check console for details (likely missing index).", "error");
+            showMessage("Failed to load all users list in real-time. Check console for details.", "error");
         });
 
         return () => unsubscribeAllUsers();
     }, [db, showMessage]);
 
-
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     useEffect(() => {
         if (!db) return;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-attendance-fallback');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/attendance`), (snapshot) => {
             const attendanceData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setAttendanceRecords(attendanceData);
+            console.log("FirebaseContext: Public attendance records snapshot received. Count:", attendanceData.length);
         }, (error) => {
             console.error("FirebaseContext: Error listening to attendance records:", error);
         });
         return () => unsubscribe();
-    }, [db, userProfile]); // Added userProfile to dependency array
-
+    }, [db]);
 
     const [schedules, setSchedules] = useState([]);
     useEffect(() => {
         if (!db) return;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-schedules-fallback');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
         const unsubscribe = onSnapshot(collection(db, `artifacts/${appId}/public/data/schedules`), (snapshot) => {
             const schedulesData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
             setSchedules(schedulesData);
+            console.log("FirebaseContext: Public schedules snapshot received. Count:", schedulesData.length);
         }, (error) => {
             console.error("FirebaseContext: Error listening to schedules:", error);
         });
@@ -255,10 +214,11 @@ export const FirebaseProvider = ({ children }) => {
     useEffect(() => {
         let unsubscribeStudents = () => {};
         if (db && userId && userProfile && userProfile.role === 'volunteer') {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id-students-fallback');
+            const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_APP_UNIQUE_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
             unsubscribeStudents = onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/studentsTaught`), (snapshot) => {
                 const studentsData = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                 setStudents(studentsData);
+                console.log("FirebaseContext: Student-specific studentsTaught snapshot received. Count:", studentsData.length);
             }, (error) => {
                 console.error("FirebaseContext: Error listening to students taught:", error);
             });
@@ -282,17 +242,10 @@ export const FirebaseProvider = ({ children }) => {
         attendanceRecords,
         schedules,
         students,
-        signInWithGoogle // Expose the new Google Sign-In function
     };
 
     return (
         <FirebaseContext.Provider value={contextValue}>
-            {message && (
-                <div className={`fixed top-4 left-1/2 -translate-x-1/2 p-3 rounded-md shadow-lg z-50 transition-all duration-300 ${messageType === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-                    {message}
-                    <button onClick={handleCloseMessage} className="ml-2 font-bold">X</button>
-                </div>
-            )}
             {children}
         </FirebaseContext.Provider>
     );
